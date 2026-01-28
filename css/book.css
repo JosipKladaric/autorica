@@ -1,0 +1,72 @@
+.book-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 40px var(--spacing-md);
+    overflow-y: auto;
+
+    /* Subtle gradient background for the desk area */
+    /* background: radial-gradient(circle at 50% 50%, #f7f9fc 0%, #ebedf0 100%); */
+}
+
+.book-page-container {
+    display: flex;
+    justify-content: center;
+    padding-bottom: 50px;
+    /* Space for scrolling past bottom */
+}
+
+.book-page {
+    width: 210mm;
+    /* A4 width */
+    min-height: 297mm;
+    /* A4 height */
+    background-color: var(--paper-bg);
+    box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.02),
+        0 2px 4px rgba(0, 0, 0, 0.02),
+        0 8px 16px rgba(0, 0, 0, 0.04),
+        0 24px 48px rgba(0, 0, 0, 0.08);
+    border-radius: 2px;
+    padding: 25mm 25mm;
+    /* Standard print margins */
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Optional: Subtle paper texture or noise could go here */
+
+.book-content {
+    font-family: var(--font-book);
+    font-size: 19px;
+    /* Comfortable reading size */
+    line-height: 1.6;
+    color: #2c2c2c;
+    outline: none;
+    /* Remove blue outline on focus */
+    height: 100%;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.book-content:empty:before {
+    content: attr(placeholder);
+    color: #9ca3af;
+    font-style: italic;
+    pointer-events: none;
+}
+
+/* Page numbering or footer could go here */
+.page-footer {
+    position: absolute;
+    bottom: 15mm;
+    width: calc(100% - 50mm);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    opacity: 0.5;
+    pointer-events: none;
+}

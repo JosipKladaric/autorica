@@ -1,0 +1,80 @@
+.context-toolbar {
+    position: fixed;
+    /* Fixed relative to viewport is easier, but absolute text pos needs calc */
+    background-color: #262626;
+    color: white;
+    border-radius: 8px;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+
+    /* Animation */
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.context-toolbar::after {
+    /* Arrow pointing down */
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #262626;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar-sep {
+    width: 1px;
+    height: 20px;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.toolbar-btn {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.1s;
+}
+
+.toolbar-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Specific button styles if needed */
+.toolbar-btn b {
+    font-weight: bold;
+}
+
+.toolbar-btn i {
+    font-style: italic;
+    font-family: serif;
+}

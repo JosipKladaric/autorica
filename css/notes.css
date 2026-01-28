@@ -1,0 +1,83 @@
+/* Notes Paper (Right Side) */
+.notes-paper {
+    position: fixed;
+    top: 90px;
+    /* Calculated to be to the RIGHT of the centered A4 paper */
+    /* 50vw + 105mm (half paper) + 40px (gap) */
+    right: calc(50vw - 105mm - 280px);
+    /* Symmetric to Guide Paper */
+
+    width: 240px;
+    /* Match height of A4/Window mostly, or fit screen */
+    height: 400px;
+    max-height: calc(100vh - 120px);
+
+    /* Post-it / Notepad Styling */
+    background-color: #fef9c3;
+    /* Light Yellow */
+    border-radius: 2px;
+    box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.05),
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        2px 2px 15px rgba(0, 0, 0, 0.1) inset;
+    /* Paper texture feel */
+
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    z-index: 40;
+
+    /* Slight rotation for "stuck on" feel? Maybe later. */
+    transform: rotate(1deg);
+}
+
+.notes-header {
+    font-family: 'Caveat', cursive;
+    font-size: 24px;
+    color: #854d0e;
+    /* Darker yellow/brown */
+    margin-bottom: 10px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 5px;
+    text-align: center;
+}
+
+.notes-content {
+    flex: 1;
+    width: 100%;
+    background: transparent;
+    border: none;
+    resize: none;
+    outline: none;
+
+    font-family: 'Caveat', cursive;
+    font-size: 20px;
+    line-height: 1.5;
+    color: #422006;
+}
+
+.notes-content::placeholder {
+    color: rgba(66, 32, 6, 0.4);
+}
+
+/* Scrollbar styling for textarea */
+.notes-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notes-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.notes-content::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+/* Media Query */
+@media (max-width: 1300px) {
+    .notes-paper {
+        right: 20px;
+        top: 80px;
+    }
+}

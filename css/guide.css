@@ -1,0 +1,114 @@
+.guide-paper {
+    position: fixed;
+    top: 40px;
+    /* Calculated to be to the left of the centered A4 paper (210mm wide) */
+    /* 50vw (center) - 105mm (half paper) - 40px (gap) - 240px (self width) */
+    left: calc(50vw - 105mm - 280px);
+
+    width: 240px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+
+    /* Paper Styling */
+    background-color: #fdfbf7;
+    /* dynamic */
+    border-radius: 2px;
+    box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.02),
+        0 2px 4px rgba(0, 0, 0, 0.02),
+        0 8px 16px rgba(0, 0, 0, 0.04),
+        0 24px 48px rgba(0, 0, 0, 0.08);
+
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    z-index: 40;
+
+    /* Hide scrollbar for cleaner look */
+    scrollbar-width: none;
+    font-family: 'Crimson Pro', serif;
+}
+
+.guide-paper::-webkit-scrollbar {
+    display: none;
+}
+
+.guide-header {
+    font-family: 'Crimson Pro', serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 15px;
+}
+
+.guide-section {
+    margin-bottom: 25px;
+}
+
+.guide-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.guide-item {
+    padding: 8px 10px;
+    margin: 0 -10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+}
+
+.guide-item:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.guide-icon {
+    margin-right: 10px;
+    color: #999;
+}
+
+/* Media Query to handle overlap on smaller screens */
+@media (max-width: 1300px) {
+    .guide-paper {
+        /* If screen is too narrow, maybe dock it to the very left edge */
+        left: 20px;
+        top: 80px;
+        /* Below settings button */
+    }
+}
+
+.guide-color-wrapper {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.guide-color-input {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    padding: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+}
