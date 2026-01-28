@@ -128,6 +128,10 @@ export function MetaPicker() {
 
             try {
                 currentSelectionRange.surroundContents(span);
+
+                // Trigger immediate scan to update guide paper
+                window.dispatchEvent(new CustomEvent('entity-highlighted'));
+
             } catch (err) {
                 console.error("Cannot wrap split selection:", err);
                 alert("Please select text within a single block for tagging.");
