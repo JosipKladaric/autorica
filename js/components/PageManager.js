@@ -15,9 +15,33 @@ export class PageManager {
 
     init() {
         this.addPage();
+        this.lastInputTime = 0;
+        this.isTyping = false;
 
-        // Global input listener for checking overflow
-        this.workspace.addEventListener('input', (e) => this.checkOverflow(e));
+        // Global input listener for checking overflow (SMART debounce)
+        let overflowCheckTimer = null;
+        let typingTimer = null;
+
+        this.workspace.addEventListener('input', (e) => {
+            this.lastInputTime = Date.now();
+            this.isTyping = true;
+
+            // Clear previous timers
+            if (overflowCheckTimer) clearTimeout(overflowCheckTimer);
+            if (typingTimer) clearTimeout(typingTimer);
+
+            // Mark as not typing after 500ms of no input
+            typingTimer = setTimeout(() => {
+                this.isTyping = false;
+            }, 500);
+
+            // Only check overflow 1 second after typing stops
+            overflowCheckTimer = setTimeout(() => {
+                if (!this.isTyping) {
+                    this.checkOverflow(e);
+                }
+            }, 1000);
+        });
     }
 
     addPage() {

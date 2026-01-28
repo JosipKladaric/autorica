@@ -107,7 +107,22 @@ export function GuidePaper() {
         const tags = entities.filter(e => e.type === 'tag');
         renderList(charsSection, chars);
         renderList(tagsSection, tags);
+
+        // Reapply colors to all existing highlights
+        reapplyHighlightColors(entities);
+
         setTimeout(scanEntities, 100);
+    }
+
+    // NEW: Reapply colors to existing highlights from store data
+    function reapplyHighlightColors(entities) {
+        entities.forEach(entity => {
+            document.querySelectorAll(`.entity-highlight[data-entity-id="${entity.id}"]`).forEach(el => {
+                el.style.backgroundColor = hexToRgba(entity.color, 0.3);
+                el.style.borderBottom = `2px solid ${entity.color}`;
+                el.title = `${entity.type}: ${entity.name}`;
+            });
+        });
     }
 
     function renderList(section, items) {

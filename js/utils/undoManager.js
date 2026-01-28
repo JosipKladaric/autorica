@@ -22,8 +22,10 @@ export class UndoManager {
         // Remove any redo history
         this.history = this.history.slice(0, this.currentIndex + 1);
 
-        // Execute the command
-        command.execute();
+        // DON'T execute the command here for content edits!
+        // The content is already in the editor from user typing.
+        // We just store it for undo/redo.
+        // command.execute(); // REMOVED - this was causing cursor jumping!
 
         // Add to history
         this.history.push(command);

@@ -19,7 +19,7 @@
         0 8px 16px rgba(0, 0, 0, 0.04),
         0 24px 48px rgba(0, 0, 0, 0.08);
 
-    padding: 20px;
+    padding: 16px 12px;
     display: flex;
     flex-direction: column;
     z-index: 40;
@@ -35,35 +35,35 @@
 
 .guide-header {
     font-family: 'Crimson Pro', serif;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: #4b5563;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding-bottom: 15px;
+    padding-bottom: 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 .guide-section {
-    margin-bottom: 25px;
+    margin-bottom: 16px;
 }
 
 .guide-label {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: #6b7280;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     text-transform: uppercase;
 }
 
 .guide-item {
-    padding: 8px 10px;
-    margin: 0 -10px;
+    padding: 6px 8px;
+    margin: 0 -8px;
     cursor: pointer;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 15px;
     color: #1f2937;
     display: flex;
     align-items: center;

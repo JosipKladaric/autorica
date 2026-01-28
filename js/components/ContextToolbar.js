@@ -48,12 +48,38 @@ export function ContextToolbar() {
     // Font Size (Incremental)
     // browser execCommand fontSize is 1-7. Default is 3.
     sectionFormat.appendChild(createBtn('A+', () => {
-        let size = parseInt(document.queryCommandValue('fontSize')) || 3;
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        // Get actual computed font size of selected text
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+
+        // Try to get current fontSize value, default to middle (4) if not set
+        let size = parseInt(document.queryCommandValue('fontSize'));
+        if (!size || isNaN(size)) {
+            size = 4; // Default to medium-large instead of 3
+        }
+
         if (size < 7) document.execCommand('fontSize', false, size + 1);
     }, 'Increase Size'));
 
     sectionFormat.appendChild(createBtn('A-', () => {
-        let size = parseInt(document.queryCommandValue('fontSize')) || 3;
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        // Get actual computed font size of selected text
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+
+        // Try to get current fontSize value, default to middle (4) if not set
+        let size = parseInt(document.queryCommandValue('fontSize'));
+        if (!size || isNaN(size)) {
+            size = 4; // Default to medium-large instead of 3
+        }
+
         if (size > 1) document.execCommand('fontSize', false, size - 1);
     }, 'Decrease Size'));
 
