@@ -1,11 +1,15 @@
 /* 
+/*
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
- * If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/. 
+ * If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
-let gapiInited = false;
+let gapiInitialized = false;
+
+// Rate limiter for Drive API
+const driveRateLimiter = new RateLimiter();
 
 
 export async function initDrive() {
@@ -29,6 +33,10 @@ export async function initDrive() {
     });
 }
 
+import { getAccessToken } from './auth.js';
+import { RateLimiter } from './utils/rateLimiter.js';
+import { createMultipartBody } from './drive-utils.js';
+
 async function loadGapiClient() {
     await new Promise((resolve, reject) => {
         gapi.load('client', { callback: resolve, onerror: reject });
@@ -38,12 +46,11 @@ async function loadGapiClient() {
         discoveryDocs: [DISCOVERY_DOC],
     });
 
-    gapiInited = true;
+    gapiInitialized = true;
     console.log('GAPI client initialized');
 
     // Attempt to set token if already logged in via auth.js
     try {
-        const { getAccessToken } = await import('./auth.js');
         const token = getAccessToken();
         if (token) {
             gapi.client.setToken({ access_token: token });
@@ -58,26 +65,28 @@ async function loadGapiClient() {
  * List files created by this app
  */
 export async function listBooks() {
-    if (!gapiInited) throw new Error('Drive API not initialized');
+    return driveRateLimiter.execute(async () => {
+        if (!gapiInitialized) throw new Error('Drive API not initialized');
 
-    try {
-        const response = await gapi.client.drive.files.list({
-            'pageSize': 100,
-            'fields': 'files(id, name, mimeType, createdTime, modifiedTime)',
-            'q': "mimeType = 'application/json' and name = 'book.json' and trashed = false"
-        });
-        return response.result.files;
-    } catch (err) {
-        console.error('Error listing books:', err);
-        throw err;
-    }
+        try {
+            const response = await gapi.client.drive.files.list({
+                'pageSize': 100,
+                'fields': 'files(id, name, mimeType, createdTime, modifiedTime)',
+                'q': "mimeType = 'application/json' and name = 'book.json' and trashed = false"
+            });
+            return response.result.files;
+        } catch (err) {
+            console.error('Error listing books:', err);
+            throw err;
+        }
+    });
 }
 
 /**
  * Create a new book (Folder + book.json + chapter_01.json)
  */
 export async function createBook(title) {
-    if (!gapiInited) throw new Error('Drive API not initialized');
+    if (!gapiInitialized) throw new Error('Drive API not initialized');
 
     try {
         // 1. Create Folder
@@ -100,7 +109,7 @@ export async function createBook(title) {
             ]
         };
 
-        await createFile('book.json', folderId, JSON.stringify(bookMetadata, null, 2));
+        await createFile(folderId, 'book.json', JSON.stringify(bookMetadata, null, 2));
 
         // 3. Create chapter_01.json
         const chapterContent = {
@@ -109,7 +118,7 @@ export async function createBook(title) {
             text: 'It was a dark and stormy night...'
         };
 
-        await createFile('chapter_01.json', folderId, JSON.stringify(chapterContent, null, 2));
+        await createFile(folderId, 'chapter_01.json', JSON.stringify(chapterContent, null, 2));
 
         console.log('Book created successfully');
         return bookMetadata;
@@ -134,65 +143,70 @@ async function createFolder(name) {
     return response.result.id;
 }
 
-import { createMultipartBody } from './drive-utils.js';
 
-export async function createFile(name, parentId, content) {
-    const boundary = '-------314159265358979323846';
-    const metadata = {
-        name: name,
-        parents: [parentId],
-        mimeType: 'application/json'
-    };
+export async function createFile(parentId, filename, content, mimeType = 'application/json') {
+    return driveRateLimiter.execute(async () => {
+        const boundary = '-------314159265358979323846';
+        const metadata = {
+            name: filename,
+            parents: [parentId],
+            mimeType: mimeType
+        };
 
-    const multipartRequestBody = createMultipartBody(metadata, content, boundary);
+        const multipartRequestBody = createMultipartBody(metadata, content, boundary);
 
-    const response = await gapi.client.request({
-        'path': '/upload/drive/v3/files',
-        'method': 'POST',
-        'params': { 'uploadType': 'multipart' },
-        'headers': {
-            'Content-Type': 'multipart/related; boundary="' + boundary + '"'
-        },
-        'body': multipartRequestBody
+        const response = await gapi.client.request({
+            'path': '/upload/drive/v3/files',
+            'method': 'POST',
+            'params': { 'uploadType': 'multipart' },
+            'headers': {
+                'Content-Type': 'multipart/related; boundary="' + boundary + '"'
+            },
+            'body': multipartRequestBody
+        });
+
+        return response.result;
     });
-
-    return response.result;
 }
 
 /**
  * Read file content from Drive
  */
 export async function readFile(fileId) {
-    if (!gapiInited) throw new Error('Drive API not initialized');
+    return driveRateLimiter.execute(async () => {
+        if (!gapiInitialized) throw new Error('Drive API not initialized');
 
-    try {
-        const response = await gapi.client.drive.files.get({
-            fileId: fileId,
-            alt: 'media'
-        });
-        return response.result;
-    } catch (err) {
-        console.error(`Error reading file ${fileId}:`, err);
-        throw err;
-    }
+        try {
+            const response = await gapi.client.drive.files.get({
+                fileId: fileId,
+                alt: 'media'
+            });
+            return response.body;
+        } catch (err) {
+            console.error(`Error reading file ${fileId}:`, err);
+            throw err;
+        }
+    });
 }
 
 /**
  * Update existing file content
  */
 export async function updateFile(fileId, content) {
-    if (!gapiInited) throw new Error('Drive API not initialized');
+    return driveRateLimiter.execute(async () => {
+        if (!gapiInitialized) throw new Error('Drive API not initialized');
 
-    try {
-        const response = await gapi.client.request({
-            path: `/upload/drive/v3/files/${fileId}`,
-            method: 'PATCH',
-            params: { uploadType: 'media' },
-            body: content
-        });
-        return response.result;
-    } catch (err) {
-        console.error(`Error updating file ${fileId}:`, err);
-        throw err;
-    }
+        try {
+            const response = await gapi.client.request({
+                path: `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
+                method: 'PATCH',
+                params: { uploadType: 'media' },
+                body: content
+            });
+            return response;
+        } catch (err) {
+            console.error(`Error updating file ${fileId}:`, err);
+            throw err;
+        }
+    });
 }

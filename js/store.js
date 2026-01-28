@@ -3,6 +3,8 @@
  * If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/. 
  */
 
+import { CONFIG } from './constants.js';
+
 export class Store {
     constructor() {
         // Default State
@@ -21,6 +23,7 @@ export class Store {
             currentChapter: null, // { id, title, file, text, fileId }
         };
         this.subscribers = [];
+        this.autosaveTimer = null;
     }
 
     addEntity(entity) {
@@ -59,6 +62,14 @@ export class Store {
 
     notify() {
         this.subscribers.forEach(callback => callback(this.state));
+
+        // Autosave settings to Drive (debounced)
+        if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+        this.autosaveTimer = setTimeout(() => {
+            this.saveSettingsToDrive().catch(err => {
+                console.error('Failed to autosave settings:', err);
+            });
+        }, CONFIG.SETTINGS_SAVE_DELAY_MS);
     }
 
     // Drive integration methods
@@ -114,6 +125,75 @@ export class Store {
             if (bookSettings.theme === 'dark') {
                 this.state.backgroundColor = '#414040ff'; // Carbon
             }
+        }
+        this.notify();
+    }
+
+    /**
+     * Save current settings back to Drive's book.json
+     */
+    async saveSettingsToDrive() {
+        if (!this.state.currentBookId) return;
+
+        try {
+            const { readFile, updateFile } = await import('./drive.js');
+            const bookData = await readFile(this.state.currentBookId);
+            const book = typeof bookData === 'string' ? JSON.parse(bookData) : bookData;
+
+            // Update settings from current state
+            book.settings = {
+                pageFormat: this.state.paperSize,
+                font: this.state.fontFamily,
+                paperTexture: this.getPaperTextureFromColor(this.state.paperColor),
+                theme: this.getThemeFromBackground(this.state.backgroundColor)
+            };
+
+            // Save entities and notes
+            book.entities = this.state.entities || [];
+            book.notes = this.state.notesContent || '';
+
+            await updateFile(this.state.currentBookId, JSON.stringify(book, null, 2));
+            console.log('Settings saved to Drive');
+        } catch (err) {
+            // Silent fail - don't interrupt user
+            console.error('Settings autosave failed:', err);
+        }
+    }
+
+    /**
+     * Map paper color back to texture name
+     */
+    getPaperTextureFromColor(color) {
+        const map = {
+            '#ffffff': 'texture-white',
+            '#F5F5DC': 'texture-cream',
+            '#FFFFF0': 'texture-ivory',
+            '#fdfbf7': 'texture-warm'
+        };
+        return map[color] || 'texture-warm';
+    }
+
+    /**
+     * Map background color to theme name
+     */
+    getThemeFromBackground(color) {
+        // Dark backgrounds
+        if (color === '#414040ff' || color === '#44545cff' ||
+            color === '#24201f' || color === '#2b2c28ff') {
+            return 'dark';
+        }
+        return 'light';
+    }
+
+    /**
+     * Load entities and notes from book metadata
+     */
+    loadEntitiesAndNotes(bookData) {
+        if (bookData.entities) {
+            this.state.entities = bookData.entities;
+        }
+        if (bookData.notes) {
+            this.state.notesContent = bookData.notes;
         }
         this.notify();
     }
