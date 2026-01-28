@@ -28,6 +28,7 @@ let undoManager = null;
 let lastContent = '';
 let focusMode = null;
 let writingStreaks = new WritingStreaks();
+let cleanupFunctions = [];
 
 export async function loadEditor(bookId, container) {
     currentBookId = bookId;
@@ -58,8 +59,7 @@ export async function loadEditor(bookId, container) {
             currentChapter = {
                 id: 'ch-1',
                 title: 'Chapter One',
-                text: '',
-                file: 'chapter_01.json'
+                text: ''
             };
         }
 
@@ -78,32 +78,11 @@ export async function loadEditor(bookId, container) {
 }
 
 async function loadChapter(chapterMeta) {
-    // Find and read chapter file from Drive
-    const fileMeta = await gapi.client.drive.files.get({
-        fileId: currentBookId,
-        fields: 'parents'
-    });
-    const parentId = fileMeta.result.parents[0];
-
-    const res = await gapi.client.drive.files.list({
-        q: `name = '${chapterMeta.file}' and '${parentId}' in parents and trashed = false`,
-        fields: 'files(id)'
-    });
-
-    const fileId = res.result.files[0]?.id;
-    if (!fileId) {
-        console.error("Chapter file not found:", chapterMeta.file);
-        currentChapter = { ...chapterMeta, text: '', fileId: null };
-        return;
-    }
-
-    const content = await readFile(fileId);
-    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-
+    // With embedded chapters, we just need to set the current chapter
+    // The chapter data is already in the book object
     currentChapter = {
         ...chapterMeta,
-        fileId: fileId,
-        text: parsed.text || ''
+        text: chapterMeta.text || ''
     };
 
     appStore.setCurrentChapter(currentChapter);
@@ -201,21 +180,6 @@ function createPDFButton() {
     return btn;
 }
 
-function createFocusModeButton() {
-    const btn = document.createElement('button');
-    btn.innerHTML = '🎯';
-    btn.className = 'focus-mode-toggle';
-    btn.title = 'Toggle Focus Mode (F11)';
-
-    btn.onclick = () => {
-        const isActive = focusMode.toggle();
-        btn.classList.toggle('active', isActive);
-        btn.title = isActive ? 'Exit Focus Mode (F11)' : 'Toggle Focus Mode (F11)';
-    };
-
-    return btn;
-}
-
 function showStatsPanel() {
     const stats = getChapterStats(currentChapter.text || '');
 
@@ -286,21 +250,97 @@ function showStatsPanel() {
 function renderEditorUI(container) {
     container.innerHTML = '';
 
+    // Create button group container
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'editor-button-group';
+    buttonGroup.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 100;
+        display: flex;
+        gap: 8px;
+    `;
+
+    // Helper to create icon button
+    const createIconButton = (icon, title, className = '') => {
+        const btn = document.createElement('button');
+        btn.innerHTML = icon;
+        btn.className = `icon-btn ${className}`;
+        btn.title = title;
+        btn.style.cssText = `
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        `;
+        btn.onmouseover = () => {
+            btn.style.transform = 'scale(1.1)';
+            btn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+        };
+        btn.onmouseout = () => {
+            btn.style.transform = 'scale(1)';
+            btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+        };
+        return btn;
+    };
+
     // Settings Button
-    const settingsBtn = document.createElement('button');
-    settingsBtn.innerHTML = '⚙️';
-    settingsBtn.className = 'settings-toggle-btn';
-    settingsBtn.title = 'Open Settings';
-    container.appendChild(settingsBtn);
+    const settingsBtn = createIconButton('⚙️', 'Settings');
+    buttonGroup.appendChild(settingsBtn);
 
-    // Stats Button
-    container.appendChild(createStatsButton());
-
-    // PDF Export Button
-    container.appendChild(createPDFButton());
+    // Fullscreen Button
+    const fullscreenBtn = createIconButton('⛶', 'Toggle Fullscreen');
+    fullscreenBtn.onclick = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().then(() => {
+                fullscreenBtn.innerHTML = '⛶'; // Exit fullscreen icon
+                fullscreenBtn.title = 'Exit Fullscreen';
+            }).catch(err => {
+                console.error('Fullscreen error:', err);
+                ErrorHandler.handle(err, 'Fullscreen');
+            });
+        } else {
+            document.exitFullscreen().then(() => {
+                fullscreenBtn.innerHTML = '⛶';
+                fullscreenBtn.title = 'Toggle Fullscreen';
+            });
+        }
+    };
+    buttonGroup.appendChild(fullscreenBtn);
 
     // Focus Mode Button
-    container.appendChild(createFocusModeButton());
+    const focusBtn = createIconButton('🎯', 'Focus Mode (F11)', 'focus-mode-toggle');
+    focusBtn.onclick = () => {
+        const isActive = focusMode.toggle();
+        if (isActive) {
+            focusBtn.style.background = '#6366f1';
+            focusBtn.style.color = 'white';
+            focusBtn.style.borderColor = '#6366f1';
+        } else {
+            focusBtn.style.background = 'white';
+            focusBtn.style.color = 'black';
+            focusBtn.style.borderColor = 'rgba(0, 0, 0, 0.1)';
+        }
+        focusBtn.title = isActive ? 'Exit Focus Mode (F11)' : 'Focus Mode (F11)';
+    };
+    buttonGroup.appendChild(focusBtn);
+
+    container.appendChild(buttonGroup);
+
+    // Stats Button (bottom right)
+    container.appendChild(createStatsButton());
+
+    // PDF Export Button (bottom right)
+    container.appendChild(createPDFButton());
 
     // Settings Window
     const settingsWindow = SettingsWindow();
@@ -308,6 +348,21 @@ function renderEditorUI(container) {
     settingsBtn.onclick = () => {
         settingsWindow.style.display = 'flex';
     };
+
+    // Listen for fullscreen changes (e.g., when user presses ESC)
+    const fullscreenChangeHandler = () => {
+        if (!document.fullscreenElement) {
+            fullscreenBtn.innerHTML = '⛶';
+            fullscreenBtn.title = 'Toggle Fullscreen';
+        } else {
+            fullscreenBtn.innerHTML = '⛶';
+            fullscreenBtn.title = 'Exit Fullscreen';
+        }
+    };
+    document.addEventListener('fullscreenchange', fullscreenChangeHandler);
+    cleanupFunctions.push(() => {
+        document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
+    });
 
     // Context Toolbar
     const toolbar = ContextToolbar();
@@ -401,8 +456,16 @@ function renderEditorUI(container) {
             const isActive = focusMode.toggle();
             const btn = document.querySelector('.focus-mode-toggle');
             if (btn) {
-                btn.classList.toggle('active', isActive);
-                btn.title = isActive ? 'Exit Focus Mode (F11)' : 'Toggle Focus Mode (F11)';
+                if (isActive) {
+                    btn.style.background = '#6366f1';
+                    btn.style.color = 'white';
+                    btn.style.borderColor = '#6366f1';
+                } else {
+                    btn.style.background = 'white';
+                    btn.style.color = 'black';
+                    btn.style.borderColor = 'rgba(0, 0, 0, 0.1)';
+                }
+                btn.title = isActive ? 'Exit Focus Mode (F11)' : 'Focus Mode (F11)';
             }
             ErrorHandler.success(isActive ? 'Focus Mode Enabled' : 'Focus Mode Disabled');
         }
@@ -417,6 +480,16 @@ function renderEditorUI(container) {
         if (undoManager) undoManager.clear();
     });
 
+    // Listen for PDF export event from settings
+    const pdfExportHandler = () => {
+        showPDFExportDialog(currentBook, currentChapter);
+    };
+    window.addEventListener('autorica:export-pdf', pdfExportHandler);
+
+    cleanupFunctions.push(() => {
+        window.removeEventListener('autorica:export-pdf', pdfExportHandler);
+    });
+
     // Add chapter selector if multiple chapters
     const selector = createChapterSelector();
     if (selector) {
@@ -428,8 +501,8 @@ function renderEditorUI(container) {
 }
 
 async function saveCurrentChapter() {
-    if (!currentChapter || !currentChapter.fileId) {
-        console.warn("No chapter to save");
+    if (!currentChapter || !currentBook || !currentBookId) {
+        console.warn("No chapter/book to save");
         return;
     }
 
@@ -437,20 +510,30 @@ async function saveCurrentChapter() {
         // Get all content from PageManager
         const htmlContent = pageManager.getAllContent();
 
-        // Update chapter
+        // Update current chapter text
         currentChapter.text = htmlContent;
 
-        // Save to Drive
-        await updateFile(currentChapter.fileId, JSON.stringify({
-            id: currentChapter.id,
-            title: currentChapter.title,
-            text: currentChapter.text
-        }, null, 2));
+        // Find and update the chapter in the book
+        const chapterIndex = currentBook.chapters.findIndex(ch => ch.id === currentChapter.id);
+        if (chapterIndex !== -1) {
+            currentBook.chapters[chapterIndex] = { ...currentChapter };
+        }
 
-        console.log("Chapter saved successfully");
-        ErrorHandler.success('Chapter saved');
+        // Update modification time
+        currentBook.modified = new Date().toISOString();
+
+        // Save entire book to Drive
+        await updateFile(currentBookId, JSON.stringify(currentBook, null, 2));
+
+        console.log("Book saved successfully");
+        ErrorHandler.success('Saved');
+
+        // Track writing for streaks
+        const wordCount = htmlContent.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(w => w.length > 0).length;
+        writingStreaks.logSession(wordCount);
+
     } catch (err) {
-        ErrorHandler.handle(err, 'SaveChapter');
+        ErrorHandler.handle(err, 'SaveBook');
     }
 }
 

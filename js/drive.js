@@ -1,16 +1,20 @@
 /* 
-/*
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
  * If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
+import { getAccessToken } from './auth.js';
+import { RateLimiter } from './utils/rateLimiter.js';
+import { createMultipartBody } from './drive-utils.js';
+
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+const APP_FOLDER_NAME = 'Autorica';
 
 let gapiInitialized = false;
+let autoricaFolderId = null;
 
 // Rate limiter for Drive API
 const driveRateLimiter = new RateLimiter();
-
 
 export async function initDrive() {
     return new Promise((resolve, reject) => {
@@ -32,10 +36,6 @@ export async function initDrive() {
         }
     });
 }
-
-import { getAccessToken } from './auth.js';
-import { RateLimiter } from './utils/rateLimiter.js';
-import { createMultipartBody } from './drive-utils.js';
 
 async function loadGapiClient() {
     await new Promise((resolve, reject) => {
@@ -62,19 +62,57 @@ async function loadGapiClient() {
 }
 
 /**
- * List files created by this app
+ * Get or create the Autorica folder in the user's Drive
+ */
+async function getAutoricaFolder() {
+    if (autoricaFolderId) return autoricaFolderId;
+
+    // Search for existing Autorica folder
+    const response = await gapi.client.drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and name = '${APP_FOLDER_NAME}' and trashed = false`,
+        fields: 'files(id)',
+        spaces: 'drive'
+    });
+
+    if (response.result.files && response.result.files.length > 0) {
+        autoricaFolderId = response.result.files[0].id;
+        console.log('Found existing Autorica folder:', autoricaFolderId);
+    } else {
+        // Create the folder
+        const folderMetadata = {
+            name: APP_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder'
+        };
+
+        const folder = await gapi.client.drive.files.create({
+            resource: folderMetadata,
+            fields: 'id'
+        });
+
+        autoricaFolderId = folder.result.id;
+        console.log('Created Autorica folder:', autoricaFolderId);
+    }
+
+    return autoricaFolderId;
+}
+
+/**
+ * List all books (JSON files in the Autorica folder)
  */
 export async function listBooks() {
     return driveRateLimiter.execute(async () => {
         if (!gapiInitialized) throw new Error('Drive API not initialized');
 
         try {
+            const folderId = await getAutoricaFolder();
+
             const response = await gapi.client.drive.files.list({
-                'pageSize': 100,
-                'fields': 'files(id, name, mimeType, createdTime, modifiedTime)',
-                'q': "mimeType = 'application/json' and name = 'book.json' and trashed = false"
+                pageSize: 100,
+                fields: 'files(id, name, mimeType, createdTime, modifiedTime)',
+                q: `'${folderId}' in parents and mimeType = 'application/json' and trashed = false`
             });
-            return response.result.files;
+
+            return response.result.files || [];
         } catch (err) {
             console.error('Error listing books:', err);
             throw err;
@@ -83,45 +121,46 @@ export async function listBooks() {
 }
 
 /**
- * Create a new book (Folder + book.json + chapter_01.json)
+ * Create a new book (single JSON file in Autorica folder)
  */
 export async function createBook(title) {
     if (!gapiInitialized) throw new Error('Drive API not initialized');
 
     try {
-        // 1. Create Folder
-        const folderId = await createFolder(title);
+        const folderId = await getAutoricaFolder();
 
-        // 2. Create book.json
-        const bookMetadata = {
+        // Create book data with embedded chapters
+        const bookData = {
             id: crypto.randomUUID(),
             title: title,
             created: new Date().toISOString(),
+            modified: new Date().toISOString(),
             settings: {
-                pageFormat: 'A4', // Default
-                font: 'Inter',
+                pageFormat: 'A4',
+                font: 'Crimson Pro',
                 fontSize: 12,
-                theme: 'dark'
+                theme: 'light'
             },
-            characters: [],
             chapters: [
-                { id: 'ch-1', title: 'Chapter One', file: 'chapter_01.json' }
-            ]
+                {
+                    id: 'ch-1',
+                    title: 'Chapter One',
+                    text: '<p>It was a dark and stormy night...</p>',
+                    created: new Date().toISOString()
+                }
+            ],
+            characters: [],
+            notes: ''
         };
 
-        await createFile(folderId, 'book.json', JSON.stringify(bookMetadata, null, 2));
+        // Generate filename from title (sanitized)
+        const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const filename = `${sanitizedTitle}_${Date.now()}.json`;
 
-        // 3. Create chapter_01.json
-        const chapterContent = {
-            id: 'ch-1',
-            title: 'Chapter One',
-            text: 'It was a dark and stormy night...'
-        };
+        const file = await createFile(folderId, filename, JSON.stringify(bookData, null, 2));
 
-        await createFile(folderId, 'chapter_01.json', JSON.stringify(chapterContent, null, 2));
-
-        console.log('Book created successfully');
-        return bookMetadata;
+        console.log('Book created successfully:', file.id);
+        return { ...bookData, fileId: file.id };
 
     } catch (err) {
         console.error('Error creating book:', err);
@@ -129,21 +168,9 @@ export async function createBook(title) {
     }
 }
 
-async function createFolder(name) {
-    const fileMetadata = {
-        'name': name,
-        'mimeType': 'application/vnd.google-apps.folder'
-    };
-
-    const response = await gapi.client.drive.files.create({
-        resource: fileMetadata,
-        fields: 'id'
-    });
-
-    return response.result.id;
-}
-
-
+/**
+ * Create a file in Drive
+ */
 export async function createFile(parentId, filename, content, mimeType = 'application/json') {
     return driveRateLimiter.execute(async () => {
         const boundary = '-------314159265358979323846';
@@ -156,13 +183,13 @@ export async function createFile(parentId, filename, content, mimeType = 'applic
         const multipartRequestBody = createMultipartBody(metadata, content, boundary);
 
         const response = await gapi.client.request({
-            'path': '/upload/drive/v3/files',
-            'method': 'POST',
-            'params': { 'uploadType': 'multipart' },
-            'headers': {
+            path: '/upload/drive/v3/files',
+            method: 'POST',
+            params: { uploadType: 'multipart' },
+            headers: {
                 'Content-Type': 'multipart/related; boundary="' + boundary + '"'
             },
-            'body': multipartRequestBody
+            body: multipartRequestBody
         });
 
         return response.result;
@@ -206,6 +233,25 @@ export async function updateFile(fileId, content) {
             return response;
         } catch (err) {
             console.error(`Error updating file ${fileId}:`, err);
+            throw err;
+        }
+    });
+}
+
+/**
+ * Delete a book file
+ */
+export async function deleteBook(fileId) {
+    return driveRateLimiter.execute(async () => {
+        if (!gapiInitialized) throw new Error('Drive API not initialized');
+
+        try {
+            await gapi.client.drive.files.delete({
+                fileId: fileId
+            });
+            console.log('Book deleted:', fileId);
+        } catch (err) {
+            console.error('Error deleting book:', err);
             throw err;
         }
     });

@@ -6,7 +6,7 @@
 import { initAuth, checkLoginStatus } from './auth.js';
 import { loadEditor } from './editor.js';
 import { WritingStreaks } from './utils/writingStreaks.js';
-import { listBooks, readFile, createBook } from './drive.js'; // Ensure drive functions are imported
+import { listBooks, readFile, createBook, initDrive } from './drive.js'; // Ensure drive functions are imported
 
 // Application State
 const state = {
@@ -45,8 +45,7 @@ async function init() {
         });
 
         await initAuth();
-        // initDrive is no longer needed here as drive functions are imported directly
-        // await initDrive(); // Removed as per new dashboard logic
+        await initDrive(); // Initialize Drive API
 
         // Check initial login status
         const loadingScreen = document.getElementById('loading-screen');
@@ -142,16 +141,16 @@ async function renderDashboard(container) {
         const booksWithMetadata = await Promise.all(files.map(async (file) => {
             try {
                 const content = await readFile(file.id);
-                const metadata = typeof content === 'string' ? JSON.parse(content) : content;
+                const bookData = typeof content === 'string' ? JSON.parse(content) : content;
                 return {
-                    folderId: file.id,
-                    title: metadata.title || file.name,
-                    chapters: metadata.chapters || [],
-                    lastModified: file.modifiedTime // Assuming file object has this
+                    fileId: file.id,
+                    title: bookData.title || file.name,
+                    chapters: bookData.chapters || [],
+                    lastModified: file.modifiedTime
                 };
             } catch (e) {
                 console.error("Failed to load book metadata", e);
-                return { folderId: file.id, title: file.name, chapters: [] };
+                return { fileId: file.id, title: file.name, chapters: [] };
             }
         }));
 
@@ -207,7 +206,7 @@ async function renderDashboard(container) {
             const gradient = gradients[Math.floor(Math.random() * gradients.length)];
 
             return `
-                                <div class="book-card" data-book-id="${book.folderId}">
+                                <div class="book-card" data-book-id="${book.fileId}">
                                     <div class="book-cover" style="background: ${gradient}">
                                         <div class="book-icon">📖</div>
                                     </div>

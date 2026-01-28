@@ -128,6 +128,37 @@ export function SettingsWindow() {
     fontSection.appendChild(fontSelect);
     content.appendChild(fontSection);
 
+    // --- Export Section ---
+    const exportSection = document.createElement('div');
+    exportSection.className = 'settings-section';
+    exportSection.innerHTML = '<label class="section-label">Export</label>';
+
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn btn-primary';
+    exportBtn.style.cssText = `
+        width: 100%;
+        padding: 12px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 0.2s;
+    `;
+    exportBtn.textContent = '📄 Export as PDF';
+    exportBtn.onmouseover = () => exportBtn.style.background = '#2563eb';
+    exportBtn.onmouseout = () => exportBtn.style.background = '#3b82f6';
+    exportBtn.onclick = () => {
+        // Dispatch a custom event that the editor can listen to
+        window.dispatchEvent(new CustomEvent('autorica:export-pdf'));
+        overlay.style.display = 'none';
+    };
+
+    exportSection.appendChild(exportBtn);
+    content.appendChild(exportSection);
+
     window.appendChild(content);
     overlay.appendChild(window);
 
