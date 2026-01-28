@@ -86,8 +86,14 @@ function render() {
     app.innerHTML = '';
 
     if (state.isAuthenticated) {
+        // Set warm background for dashboard
+        document.body.style.backgroundColor = '#9d9182';
+        document.body.style.backgroundImage = 'none';
         renderDashboard(app);
     } else {
+        // Set neutral background for login
+        document.body.style.backgroundColor = '#f3f4f6';
+        document.body.style.backgroundImage = 'none';
         renderLogin(app);
     }
 }
@@ -191,33 +197,13 @@ async function renderDashboard(container) {
                 return sum + (ch.text || '').split(/\s+/).filter(w => w.length > 0).length;
             }, 0) || 0;
 
-            const targetWords = 80000; // Average novel
-            const progress = Math.min(100, (wordCount / targetWords) * 100);
-
-            // Random gradient for cover
-            const gradients = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
-            ];
-            const gradient = gradients[Math.floor(Math.random() * gradients.length)];
-
             return `
                                 <div class="book-card" data-book-id="${book.fileId}">
-                                    <div class="book-cover" style="background: ${gradient}">
-                                        <div class="book-icon">📖</div>
-                                    </div>
                                     <div class="book-card-content">
                                         <h3>${book.title || 'Untitled Book'}</h3>
                                         <div class="book-meta">
-                                            <span>📝 ${wordCount.toLocaleString()} words</span>
-                                            <span>📚 ${book.chapters?.length || 0} chapters</span>
-                                        </div>
-                                        <div class="progress-bar">
-                                            <div class="progress" style="--progress-width: ${progress}%; width: ${progress}%"></div>
+                                            <span>${wordCount.toLocaleString()}w</span>
+                                            <span>${book.chapters?.length || 0}ch</span>
                                         </div>
                                     </div>
                                 </div>

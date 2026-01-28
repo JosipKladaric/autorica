@@ -156,29 +156,6 @@ function createStatsButton() {
     return btn;
 }
 
-function createPDFButton() {
-    const btn = document.createElement('button');
-    btn.innerHTML = '📄';
-    btn.className = 'pdf-toggle-btn';
-    btn.title = 'Export to PDF';
-    btn.style.cssText = `
-        position: fixed;
-        top: 120px;
-        right: 20px;
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        z-index: 99;
-    `;
-
-    btn.onclick = () => showPDFExportDialog(currentBook, currentChapter);
-    return btn;
-}
 
 function showStatsPanel() {
     const stats = getChapterStats(currentChapter.text || '');
@@ -339,9 +316,6 @@ function renderEditorUI(container) {
     // Stats Button (bottom right)
     container.appendChild(createStatsButton());
 
-    // PDF Export Button (bottom right)
-    container.appendChild(createPDFButton());
-
     // Settings Window
     const settingsWindow = SettingsWindow();
     container.appendChild(settingsWindow);
@@ -417,18 +391,22 @@ function renderEditorUI(container) {
     document.body.style.backgroundImage = 'none';
 
     // Setup autosave on content changes
+    let undoTrackingTimer = null;
     const autosaveHandler = () => {
         if (autosaveTimer) clearTimeout(autosaveTimer);
         autosaveTimer = setTimeout(saveCurrentChapter, CONFIG.AUTOSAVE_DELAY_MS);
         updateWordCount();
 
-        // Track content for undo/redo
-        const newContent = pageManager.getAllContent();
-        if (newContent !== lastContent) {
-            const command = new ContentEditCommand(pageManager, lastContent, newContent);
-            undoManager.execute(command);
-            lastContent = newContent;
-        }
+        // Track content for undo/redo (DEBOUNCED to prevent cursor jumping)
+        if (undoTrackingTimer) clearTimeout(undoTrackingTimer);
+        undoTrackingTimer = setTimeout(() => {
+            const newContent = pageManager.getAllContent();
+            if (newContent !== lastContent) {
+                const command = new ContentEditCommand(pageManager, lastContent, newContent);
+                undoManager.execute(command);
+                lastContent = newContent;
+            }
+        }, 1000); // Wait 1 second after user stops typing
     };
     workspace.addEventListener('input', autosaveHandler);
 
@@ -530,7 +508,7 @@ async function saveCurrentChapter() {
 
         // Track writing for streaks
         const wordCount = htmlContent.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(w => w.length > 0).length;
-        writingStreaks.logSession(wordCount);
+        writingStreaks.recordWords(wordCount);
 
     } catch (err) {
         ErrorHandler.handle(err, 'SaveBook');
@@ -567,5 +545,8 @@ function updateWordCount() {
         document.body.appendChild(counter);
     }
 
-    counter.textContent = `${words.toLocaleString()} words • ${chars.toLocaleString()} characters`;
+    const pageCount = pageManager ? pageManager.pages.length : 1;
+    const chapterCount = currentBook ? currentBook.chapters.length : 1;
+
+    counter.textContent = `${words.toLocaleString()} words • ${chapterCount} chapters • ${pageCount} pages`;
 }
