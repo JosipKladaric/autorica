@@ -98,6 +98,11 @@ export function GuidePaper() {
         timeout = setTimeout(scanEntities, 1000);
     });
 
+    // Immediate scan when entity is highlighted
+    window.addEventListener('entity-highlighted', () => {
+        scanEntities();
+    });
+
     setInterval(scanEntities, 2000);
     setTimeout(scanEntities, 500);
 
