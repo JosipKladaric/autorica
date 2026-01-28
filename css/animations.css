@@ -1,0 +1,157 @@
+/* Premium Animations */
+
+/* Button hover effects */
+.settings-toggle-btn,
+.stats-toggle-btn,
+.pdf-toggle-btn,
+.focus-mode-toggle {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.settings-toggle-btn:hover {
+    transform: scale(1.1) rotate(15deg);
+}
+
+.stats-toggle-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.pdf-toggle-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Save success animation */
+@keyframes save-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02),
+            0 2px 4px rgba(0, 0, 0, 0.02),
+            0 8px 16px rgba(0, 0, 0, 0.04),
+            0 24px 48px rgba(0, 0, 0, 0.08);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3),
+            0 1px 1px rgba(0, 0, 0, 0.02),
+            0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+}
+
+.book-page.saved-flash {
+    animation: save-pulse 0.6s ease-out;
+}
+
+/* Milestone celebration */
+@keyframes confetti-burst {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.5) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.celebration-confetti {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    font-size: 48px;
+    pointer-events: none;
+    animation: confetti-burst 1s ease-out forwards;
+    z-index: 10000;
+}
+
+/* Loading skeleton */
+@keyframes skeleton-pulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.skeleton-loader {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+/* Smooth page transitions */
+.fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Book card hover effect */
+.book-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.book-card:active {
+    transform: translateY(-2px);
+}
+
+/* Progress bar animation */
+@keyframes progress-fill {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: var(--progress-width);
+    }
+}
+
+.progress-bar .progress {
+    animation: progress-fill 0.8s ease-out;
+}
+
+/* Ripple effect for interactions */
+@keyframes ripple {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.5);
+    width: 20px;
+    height: 20px;
+    animation: ripple 0.6s ease-out;
+    pointer-events: none;
+}

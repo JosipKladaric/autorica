@@ -1,0 +1,99 @@
+/* Focus Mode Styles */
+
+/* Dim everything when in focus mode */
+body.focus-mode {
+    background-color: rgba(0, 0, 0, 0.95) !important;
+    transition: background-color 0.5s ease;
+}
+
+/* Hide UI elements in focus mode until hover */
+body.focus-mode .settings-toggle-btn,
+body.focus-mode .stats-toggle-btn,
+body.focus-mode .pdf-toggle-btn,
+body.focus-mode #word-count,
+body.focus-mode .guide-paper,
+body.focus-mode .notes-paper {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.focus-mode .settings-toggle-btn:hover,
+body.focus-mode .stats-toggle-btn:hover,
+body.focus-mode .pdf-toggle-btn:hover,
+body.focus-mode #word-count:hover,
+body.focus-mode .guide-paper:hover,
+body.focus-mode .notes-paper:hover {
+    opacity: 1;
+}
+
+/* Dim all paragraphs except focused one */
+body.focus-mode .book-content p {
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+body.focus-mode .book-content p.focused-paragraph {
+    opacity: 1;
+}
+
+/* Vignette effect around edges */
+body.focus-mode::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.7) 100%);
+    z-index: 1;
+}
+
+/* Focus Mode Toggle Button */
+.focus-mode-toggle {
+    position: fixed;
+    top: 170px;
+    right: 20px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 99;
+    transition: all 0.3s ease;
+}
+
+.focus-mode-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.focus-mode-toggle.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Smooth cursor pulse */
+.book-content {
+    caret-color: #3b82f6;
+}
+
+.book-content:focus {
+    caret-color: #3b82f6;
+}
+
+@keyframes cursor-breathe {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
