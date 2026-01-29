@@ -19,6 +19,7 @@ import { getChapterStats } from './utils/textStats.js';
 import { showPDFExportDialog } from './utils/pdfExport.js';
 import { FocusMode } from './utils/focusMode.js';
 import { WritingStreaks } from './utils/writingStreaks.js';
+import { DictationManager } from './utils/dictationManager.js';
 
 let currentBook = null;
 let currentBookId = null;
@@ -30,9 +31,16 @@ let lastContent = '';
 let focusMode = null;
 let writingStreaks = new WritingStreaks();
 let cleanupFunctions = [];
+let dictationManager = null;
+let interimSpan = null;
 
 export function cleanup() {
     cleanupFunctions.forEach(fn => fn());
+    if (dictationManager) {
+        dictationManager.stop();
+        dictationManager = null;
+    }
+    interimSpan = null;
     cleanupFunctions = [];
 }
 
@@ -355,7 +363,33 @@ function renderEditorUI(container) {
         }
         focusBtn.title = isActive ? 'Izlaz iz Fokus Načina (F11)' : 'Fokus Način (F11)';
     };
+
     buttonGroup.appendChild(focusBtn);
+
+    // Dictation Button
+    const dictationBtn = createIconButton('🎤', 'Diktiranje');
+    dictationManager = new DictationManager(
+        ({ final, interim }) => handleDictationResult(final, interim),
+        (isListening) => {
+            if (isListening) {
+                dictationBtn.style.background = '#ef4444';
+                dictationBtn.style.color = 'white';
+                dictationBtn.style.borderColor = '#ef4444';
+                dictationBtn.firstChild.style.cssText = 'animation: pulse 1.5s infinite;'; // Visual feedback
+            } else {
+                dictationBtn.style.background = 'white';
+                dictationBtn.style.color = 'black';
+                dictationBtn.style.borderColor = 'rgba(0, 0, 0, 0.1)';
+                if (dictationBtn.firstChild) dictationBtn.firstChild.style.animation = 'none';
+            }
+        }
+    );
+
+    if (dictationManager.isSupported()) {
+        dictationBtn.onmousedown = (e) => e.preventDefault(); // Prevent focus loss
+        dictationBtn.onclick = () => dictationManager.toggle();
+        buttonGroup.appendChild(dictationBtn);
+    }
 
     container.appendChild(buttonGroup);
 
@@ -549,6 +583,66 @@ function renderEditorUI(container) {
 
     // Initialize word count
     updateWordCount();
+}
+
+
+function handleDictationResult(finalText, interimText) {
+    const selection = window.getSelection();
+
+    // 1. Handle Interim
+    if (interimText) {
+        if (!interimSpan) {
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                // Ensure we are in a content element
+                if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE &&
+                    range.commonAncestorContainer.parentElement.closest('.book-content') ||
+                    range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE &&
+                    range.commonAncestorContainer.closest('.book-content')) {
+
+                    interimSpan = document.createElement('span');
+                    interimSpan.className = 'interim-text';
+                    interimSpan.style.color = '#9ca3af';
+
+                    range.deleteContents();
+                    range.insertNode(interimSpan);
+                }
+            }
+        }
+        if (interimSpan) {
+            interimSpan.textContent = interimText;
+        }
+    } else if (interimSpan && !finalText) {
+        // Cleared interim
+        interimSpan.remove();
+        interimSpan = null;
+    }
+
+    // 2. Handle Final
+    if (finalText) {
+        const textNode = document.createTextNode(finalText + ' ');
+        if (interimSpan) {
+            interimSpan.replaceWith(textNode);
+            interimSpan = null;
+        } else {
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(textNode);
+            }
+        }
+
+        // Update Cursor
+        const range = document.createRange();
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        // Dispatch input event for autosave/overflow
+        const workspace = document.querySelector('.book-workspace');
+        if (workspace) workspace.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 }
 
 async function saveCurrentChapter() {
