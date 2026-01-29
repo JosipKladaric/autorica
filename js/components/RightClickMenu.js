@@ -113,11 +113,11 @@ export class RightClickMenu {
     }
 
     handleGenerateImage() {
-        const prompt = prompt("Enter image description:");
-        if (!prompt) return;
+        const userPrompt = prompt("Enter image description:");
+        if (!userPrompt) return;
 
         // Use Pollinations.ai (Free, no key)
-        const encodedPrompt = encodeURIComponent(prompt);
+        const encodedPrompt = encodeURIComponent(userPrompt);
         // We can add parameters for size, style etc if needed. 
         // Default is usually square. Let's ask for landscape slightly: width=1024&height=768
         const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true`;
