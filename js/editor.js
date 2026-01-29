@@ -20,6 +20,7 @@ import { showPDFExportDialog } from './utils/pdfExport.js';
 import { FocusMode } from './utils/focusMode.js';
 import { WritingStreaks } from './utils/writingStreaks.js';
 import { DictationManager } from './utils/dictationManager.js';
+import { RightClickMenu } from './components/RightClickMenu.js';
 
 let currentBook = null;
 let currentBookId = null;
@@ -443,6 +444,7 @@ function renderEditorUI(container) {
     // Meta Picker
     container.appendChild(MetaPicker());
 
+
     // Guide Paper (Left)
     container.appendChild(GuidePaper());
 
@@ -460,6 +462,18 @@ function renderEditorUI(container) {
     // Initialize PageManager
     pageManager = new PageManager(workspace);
     pageManager.init();
+
+    // Right Click Menu (Now safe to init)
+    new RightClickMenu(workspace);
+
+    // Listen for custom dictation trigger from menu
+    const dictationToggleHandler = () => {
+        if (dictationManager) dictationManager.toggle();
+    };
+    window.addEventListener('autorica:dictation-toggle', dictationToggleHandler);
+    cleanupFunctions.push(() => {
+        window.removeEventListener('autorica:dictation-toggle', dictationToggleHandler);
+    });
 
     // Initialize Focus Mode
     focusMode = new FocusMode(workspace);
@@ -586,28 +600,55 @@ function renderEditorUI(container) {
 }
 
 
+let lastValidRange = null;
+
+// Track selection changes to save the last valid cursor position
+document.addEventListener('selectionchange', () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        // Check if selection is within the book content
+        if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE &&
+            range.commonAncestorContainer.parentElement.closest('.book-content') ||
+            range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE &&
+            range.commonAncestorContainer.closest('.book-content')) {
+            lastValidRange = range.cloneRange();
+        }
+    }
+});
+
 function handleDictationResult(finalText, interimText) {
     const selection = window.getSelection();
+
+    // Attempt to restore range if we don't have a valid one currently active in the book
+    let activeRange = null;
+    if (selection.rangeCount > 0) {
+        const r = selection.getRangeAt(0);
+        if (r.commonAncestorContainer.nodeType === Node.TEXT_NODE &&
+            r.commonAncestorContainer.parentElement.closest('.book-content') ||
+            r.commonAncestorContainer.nodeType === Node.ELEMENT_NODE &&
+            r.commonAncestorContainer.closest('.book-content')) {
+            activeRange = r;
+        }
+    }
+
+    if (!activeRange && lastValidRange) {
+        selection.removeAllRanges();
+        selection.addRange(lastValidRange);
+        activeRange = lastValidRange;
+    }
+
+    if (!activeRange) return; // Can't insert text nowhere
 
     // 1. Handle Interim
     if (interimText) {
         if (!interimSpan) {
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                // Ensure we are in a content element
-                if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE &&
-                    range.commonAncestorContainer.parentElement.closest('.book-content') ||
-                    range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE &&
-                    range.commonAncestorContainer.closest('.book-content')) {
+            interimSpan = document.createElement('span');
+            interimSpan.className = 'interim-text';
+            interimSpan.style.color = '#9ca3af';
 
-                    interimSpan = document.createElement('span');
-                    interimSpan.className = 'interim-text';
-                    interimSpan.style.color = '#9ca3af';
-
-                    range.deleteContents();
-                    range.insertNode(interimSpan);
-                }
-            }
+            activeRange.deleteContents();
+            activeRange.insertNode(interimSpan);
         }
         if (interimSpan) {
             interimSpan.textContent = interimText;
@@ -625,11 +666,8 @@ function handleDictationResult(finalText, interimText) {
             interimSpan.replaceWith(textNode);
             interimSpan = null;
         } else {
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(textNode);
-            }
+            activeRange.deleteContents();
+            activeRange.insertNode(textNode);
         }
 
         // Update Cursor
@@ -638,6 +676,9 @@ function handleDictationResult(finalText, interimText) {
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
+
+        // Update last valid range
+        lastValidRange = range.cloneRange();
 
         // Dispatch input event for autosave/overflow
         const workspace = document.querySelector('.book-workspace');

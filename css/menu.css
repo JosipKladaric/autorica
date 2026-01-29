@@ -1,0 +1,44 @@
+/* Context Menu */
+.context-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 6px 0;
+    min-width: 180px;
+    z-index: 10000;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    animation: fadeIn 0.1s ease-out;
+}
+
+.context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.1s;
+}
+
+.context-menu-item:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.book-inserted-image {
+    display: block;
+    margin: 1em auto;
+    max-width: 80%;
+    /* Keep images small-ish */
+    height: auto;
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.book-inserted-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
