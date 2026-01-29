@@ -19,13 +19,13 @@ export function GuidePaper() {
     // Title / Header
     const header = document.createElement('div');
     header.className = 'guide-header';
-    header.innerHTML = 'Guide';
+    header.innerHTML = 'Vodič';
     container.appendChild(header);
 
     // Sections Containers
-    const chaptersSection = createSectionContainer('Chapters'); // Placeholder for now
-    const charsSection = createSectionContainer('Characters');
-    const tagsSection = createSectionContainer('Tags');
+    const chaptersSection = createSectionContainer('Poglavlja'); // Placeholder for now
+    const charsSection = createSectionContainer('Likovi');
+    const tagsSection = createSectionContainer('Oznake');
 
     container.appendChild(chaptersSection);
     container.appendChild(charsSection);
@@ -103,7 +103,62 @@ export function GuidePaper() {
         scanEntities();
     });
 
-    setInterval(scanEntities, 2000);
+    // Watch for deletion of highlighted text
+    const observer = new MutationObserver((mutations) => {
+        let highlightRemoved = false;
+        mutations.forEach(mutation => {
+            mutation.removedNodes.forEach(node => {
+                // Check if removed node or its children had entity highlights
+                if (node.classList && node.classList.contains('entity-highlight')) {
+                    highlightRemoved = true;
+                } else if (node.querySelectorAll) {
+                    if (node.querySelectorAll('.entity-highlight').length > 0) {
+                        highlightRemoved = true;
+                    }
+                }
+            });
+        });
+
+        if (highlightRemoved) {
+            // Immediate scan when highlight is deleted
+            scanEntities();
+        }
+    });
+
+    // Content Loaded Event - Sync point for initial load
+    window.addEventListener('content-loaded', () => {
+        // 1. Reapply colors to tags in the text
+        const state = appStore.getState();
+        if (state.entities) {
+            reapplyHighlightColors(state.entities);
+        }
+
+        // 2. Scan for page numbers immediately
+        scanEntities();
+
+        // 3. Start observer
+        const workspace = document.querySelector('.book-workspace');
+        if (workspace) {
+            observer.disconnect(); // Prevent duplicates
+            observer.observe(workspace, {
+                childList: true,
+                subtree: true
+            });
+        }
+    });
+
+    // Observe the workspace for changes (fallback)
+    setTimeout(() => {
+        const workspace = document.querySelector('.book-workspace');
+        if (workspace) {
+            observer.observe(workspace, {
+                childList: true,
+                subtree: true
+            });
+        }
+    }, 1000);
+
+    setInterval(scanEntities, 2000); // Keep periodic scan as backup
     setTimeout(scanEntities, 500);
 
     function updateLists(entities) {
@@ -164,6 +219,12 @@ export function GuidePaper() {
             name.className = 'guide-name';
             name.innerText = item.name;
 
+            // Name Click -> Show Toolbar
+            name.onclick = (e) => {
+                e.stopPropagation();
+                showEntityToolbar(item, name);
+            };
+
             const refs = document.createElement('span');
             refs.className = 'guide-refs';
             refs.style.marginLeft = '6px';
@@ -177,7 +238,7 @@ export function GuidePaper() {
         // "Add" button
         const addBtn = document.createElement('div');
         addBtn.className = 'guide-item guide-add-btn';
-        addBtn.innerText = '+ Add New';
+        addBtn.innerText = '+ Dodaj Novo';
         addBtn.style.color = '#3b82f6';
         addBtn.onclick = () => {
             const event = new CustomEvent('open-entity-picker', {
@@ -188,21 +249,104 @@ export function GuidePaper() {
         content.appendChild(addBtn);
     }
 
-    function updatePageRefs(locations) {
-        Object.keys(locations).forEach(id => {
-            const row = container.querySelector(`.guide-item[data-id="${id}"]`);
-            if (row) {
-                const refsFn = row.querySelector('.guide-refs');
-                const pages = Array.from(locations[id]).sort((a, b) => a - b);
+    let activeToolbar = null;
 
-                if (pages.length > 0) {
-                    const links = pages.map(p =>
-                        `<span class="page-link" onclick="document.getElementById('page-container-${p}').scrollIntoView({behavior:'smooth'})">${p}</span>`
-                    ).join(', ');
-                    refsFn.innerHTML = `(${links})`;
-                } else {
-                    refsFn.innerHTML = '';
-                }
+    function showEntityToolbar(entity, element) {
+        if (activeToolbar) activeToolbar.remove();
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'entity-toolbar';
+
+        // 1. Rename
+        const renameBtn = document.createElement('button');
+        renameBtn.innerHTML = '✏️ Preimenuj';
+        renameBtn.onclick = () => {
+            const newName = prompt('Preimenuj oznaku:', entity.name);
+            if (newName && newName.trim()) {
+                appStore.updateEntity(entity.id, { name: newName.trim() });
+                // Re-render happens via subscription, scanning happens via observer
+            }
+            toolbar.remove();
+        };
+
+        // 2. Delete
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.innerHTML = '🗑️ Ukloni';
+        deleteBtn.onclick = () => {
+            if (confirm(`Ukloniti "${entity.name}" i sve lokalne oznake?`)) {
+
+                // 1. Remove highlights from text
+                unwrapHighlights(entity.id);
+
+                // 2. Remove from store
+                appStore.deleteEntity(entity.id);
+
+                // 3. Scan to update guide UI
+                scanEntities();
+            }
+            toolbar.remove();
+        };
+
+        toolbar.appendChild(renameBtn);
+        toolbar.appendChild(deleteBtn);
+
+        document.body.appendChild(toolbar);
+        activeToolbar = toolbar;
+
+        // Position it
+        const rect = element.getBoundingClientRect();
+        toolbar.style.top = `${rect.bottom + 5}px`;
+        toolbar.style.left = `${rect.left}px`;
+
+        // Click outside to close
+        const closeHandler = (e) => {
+            if (!toolbar.contains(e.target) && e.target !== element) {
+                toolbar.remove();
+                document.removeEventListener('mousedown', closeHandler);
+                activeToolbar = null;
+            }
+        };
+        setTimeout(() => document.addEventListener('mousedown', closeHandler), 0);
+    }
+
+    function unwrapHighlights(entityId) {
+        const highlights = document.querySelectorAll(`.entity-highlight[data-entity-id="${entityId}"]`);
+        let modified = false;
+
+        highlights.forEach(span => {
+            const parent = span.parentNode;
+            while (span.firstChild) {
+                parent.insertBefore(span.firstChild, span);
+            }
+            parent.removeChild(span);
+            modified = true;
+        });
+
+        // Trigger input event to save changes if needed
+        if (modified) {
+            document.querySelector('.book-workspace')?.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    function updatePageRefs(locations) {
+        // Iterate over ALL guide items to ensure we clear those that no longer have locations
+        const allItems = container.querySelectorAll('.guide-item[data-id]');
+
+        allItems.forEach(row => {
+            const id = row.dataset.id;
+            const refsFn = row.querySelector('.guide-refs');
+
+            if (locations[id] && locations[id].size > 0) {
+                // Determine pages
+                const pages = Array.from(locations[id]).sort((a, b) => a - b);
+                const links = pages.map(p =>
+                    `<span class="page-link" onclick="document.getElementById('page-container-${p}').scrollIntoView({behavior:'smooth'})">${p}</span>`
+                ).join(', ');
+                refsFn.innerHTML = `(${links})`;
+            } else {
+                // No locations found -> Clear it
+                refsFn.innerHTML = '';
             }
         });
     }

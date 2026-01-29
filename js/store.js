@@ -16,6 +16,7 @@ export class Store {
             backgroundColor: '#e2e8f0', // Mist
             entities: [], // { id, type, name, color, pageRefs: [] }
             notesContent: '', // Persistent notes
+            audioNotes: [], // { id, url, duration, timestamp, date }
 
             // Drive-related state
             currentBookId: null,
@@ -35,6 +36,11 @@ export class Store {
         this.state.entities = this.state.entities.map(e =>
             e.id === id ? { ...e, ...updates } : e
         );
+        this.notify();
+    }
+
+    deleteEntity(id) {
+        this.state.entities = this.state.entities.filter(e => e.id !== id);
         this.notify();
     }
 
@@ -112,8 +118,10 @@ export class Store {
                 };
                 this.state.fontFamily = fontMap[bookSettings.font] || 'Crimson Pro';
             }
-            if (bookSettings.paperTexture) {
-                // Map texture to paper color
+            if (bookSettings.paperColor) {
+                this.state.paperColor = bookSettings.paperColor;
+            } else if (bookSettings.paperTexture) {
+                // Legacy fallback
                 const textureMap = {
                     'texture-white': '#ffffff',
                     'texture-cream': '#F5F5DC',
@@ -122,8 +130,11 @@ export class Store {
                 };
                 this.state.paperColor = textureMap[bookSettings.paperTexture] || '#fdfbf7';
             }
-            if (bookSettings.theme === 'dark') {
-                this.state.backgroundColor = '#414040ff'; // Carbon
+
+            if (bookSettings.backgroundColor) {
+                this.state.backgroundColor = bookSettings.backgroundColor;
+            } else if (bookSettings.theme === 'dark') {
+                this.state.backgroundColor = '#414040'; // Carbon legacy fallback
             }
         }
         this.notify();
@@ -144,6 +155,10 @@ export class Store {
             book.settings = {
                 pageFormat: this.state.paperSize,
                 font: this.state.fontFamily,
+                // Save precise colors
+                backgroundColor: this.state.backgroundColor,
+                paperColor: this.state.paperColor,
+                // Legacy support
                 paperTexture: this.getPaperTextureFromColor(this.state.paperColor),
                 theme: this.getThemeFromBackground(this.state.backgroundColor)
             };
@@ -151,6 +166,7 @@ export class Store {
             // Save entities and notes
             book.entities = this.state.entities || [];
             book.notes = this.state.notesContent || '';
+            book.audioNotes = this.state.audioNotes || [];
 
             await updateFile(this.state.currentBookId, JSON.stringify(book, null, 2));
             console.log('Settings saved to Drive');
@@ -178,8 +194,8 @@ export class Store {
      */
     getThemeFromBackground(color) {
         // Dark backgrounds
-        if (color === '#414040ff' || color === '#44545cff' ||
-            color === '#24201f' || color === '#2b2c28ff') {
+        if (color === '#414040' || color === '#44545c' ||
+            color === '#24201f' || color === '#2b2c28') {
             return 'dark';
         }
         return 'light';
@@ -189,12 +205,10 @@ export class Store {
      * Load entities and notes from book metadata
      */
     loadEntitiesAndNotes(bookData) {
-        if (bookData.entities) {
-            this.state.entities = bookData.entities;
-        }
-        if (bookData.notes) {
-            this.state.notesContent = bookData.notes;
-        }
+        // Always reset or overwrite to prevent data leak between books
+        this.state.entities = bookData.entities || [];
+        this.state.notesContent = bookData.notes || '';
+        this.state.audioNotes = bookData.audioNotes || [];
         this.notify();
     }
 }
@@ -218,10 +232,10 @@ export const PAPER_COLORS = {
 };
 
 export const BACKGROUND_COLORS = {
-    'Carbon': '#414040ff',    // Neutral, high contrast
-    'Navy': '#44545cff',      // Cool, subtle blue tint
+    'Carbon': '#414040',    // Neutral, high contrast
+    'Navy': '#44545c',      // Cool, subtle blue tint
     'Espresso': '#24201f',  // Warm, subtle brown tint
-    'Olive': '#2b2c28ff',     // Earthy, subtle green tint
+    'Olive': '#2b2c28',     // Earthy, subtle green tint
     'Latte': '#e6dcc6',     // Warm beige (light)
     'Mist': '#e2e8f0',      // Cool light gray
     'Pebble': '#dcd7d1',    // Neutral light/warm gray

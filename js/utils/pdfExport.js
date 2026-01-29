@@ -97,9 +97,16 @@ export async function exportToPDF(content, options = {}) {
             doc.setFontSize(12);
         }
 
-        // Strip HTML and process text
-        const cleanText = chapterText.replace(/<[^>]*>/g, '').trim();
-        const paragraphs = cleanText.split(/\n\n+/);
+        // Strip HTML using DOM to preserve newlines/formatting logic
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = chapterText;
+        const cleanText = tempDiv.innerText.trim();
+
+        // Split by logical paragraphs (usually separated by newlines in innerText)
+        let paragraphs = cleanText.split(/\n+/).filter(p => p.trim().length > 0);
+
+        // Handle case where text is one big block
+        if (paragraphs.length === 0 && cleanText.length > 0) paragraphs = [cleanText];
 
         paragraphs.forEach(para => {
             const lines = doc.splitTextToSize(para.trim(), contentWidth);

@@ -12,7 +12,8 @@ body.focus-mode .stats-toggle-btn,
 body.focus-mode .pdf-toggle-btn,
 body.focus-mode #word-count,
 body.focus-mode .guide-paper,
-body.focus-mode .notes-paper {
+body.focus-mode .notes-paper,
+body.focus-mode .audio-notes-paper {
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -22,7 +23,8 @@ body.focus-mode .stats-toggle-btn:hover,
 body.focus-mode .pdf-toggle-btn:hover,
 body.focus-mode #word-count:hover,
 body.focus-mode .guide-paper:hover,
-body.focus-mode .notes-paper:hover {
+body.focus-mode .notes-paper:hover,
+body.focus-mode .audio-notes-paper:hover {
     opacity: 1;
 }
 
@@ -51,18 +53,8 @@ body.focus-mode::before {
 
 /* Focus Mode Toggle Button */
 .focus-mode-toggle {
-    position: fixed;
-    top: 170px;
-    right: 20px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
+    /* Position handled by toolbar */
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    z-index: 99;
     transition: all 0.3s ease;
 }
 

@@ -34,7 +34,7 @@ export function MetaPicker() {
         // Header
         const header = document.createElement('div');
         header.className = 'meta-header';
-        header.innerText = currentType === 'character' ? 'Select Character' : 'Select Tag';
+        header.innerText = currentType === 'character' ? 'Odaberi Lika' : 'Odaberi Oznaku';
         picker.appendChild(header);
 
         // List Existing
@@ -65,7 +65,7 @@ export function MetaPicker() {
         } else {
             const empty = document.createElement('div');
             empty.className = 'meta-empty';
-            empty.innerText = 'No items yet.';
+            empty.innerText = 'Nema stavki.';
             picker.appendChild(empty);
         }
 
@@ -74,7 +74,7 @@ export function MetaPicker() {
         createSection.className = 'meta-create';
 
         const input = document.createElement('input');
-        input.placeholder = `New ${currentType} name...`;
+        input.placeholder = currentType === 'character' ? 'Novo ime lika...' : 'Nova oznaka...';
         input.className = 'meta-input';
 
         const colorInput = document.createElement('input');
@@ -83,7 +83,7 @@ export function MetaPicker() {
         colorInput.className = 'meta-color';
 
         const addBtn = document.createElement('button');
-        addBtn.innerText = 'Add';
+        addBtn.innerText = 'Dodaj';
         addBtn.className = 'meta-add-btn';
 
         addBtn.onclick = () => {
@@ -107,7 +107,7 @@ export function MetaPicker() {
         // Close Button
         const closeBtn = document.createElement('button');
         closeBtn.className = 'meta-close-btn';
-        closeBtn.innerText = 'Cancel';
+        closeBtn.innerText = 'Odustani';
         closeBtn.onclick = () => { overlay.style.display = 'none'; };
         picker.appendChild(closeBtn);
     };
@@ -134,7 +134,7 @@ export function MetaPicker() {
 
             } catch (err) {
                 console.error("Cannot wrap split selection:", err);
-                alert("Please select text within a single block for tagging.");
+                alert("Molimo odaberite tekst unutar jednog bloka.");
             }
         }
         overlay.style.display = 'none';

@@ -16,7 +16,7 @@ export function SettingsWindow() {
     // Header
     const header = document.createElement('div');
     header.className = 'settings-header';
-    header.innerHTML = '<span class="settings-title">Formatting &amp; Theme</span>';
+    header.innerHTML = '<span class="settings-title">Postavke Izgleda</span>';
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'settings-close-btn';
@@ -33,7 +33,7 @@ export function SettingsWindow() {
     // --- Paper Size Section ---
     const sizeSection = document.createElement('div');
     sizeSection.className = 'settings-section';
-    sizeSection.innerHTML = '<label class="section-label">Paper Type</label>';
+    sizeSection.innerHTML = '<label class="section-label">Tip Papira</label>';
 
     const sizeSelect = document.createElement('select');
     sizeSelect.className = 'sidebar-select'; // Reusing sidebar styles for now
@@ -56,7 +56,7 @@ export function SettingsWindow() {
     // --- Paper Color Section ---
     const colorSection = document.createElement('div');
     colorSection.className = 'settings-section';
-    colorSection.innerHTML = '<label class="section-label">Paper Color</label>';
+    colorSection.innerHTML = '<label class="section-label">Boja Papira</label>';
 
     const colorGrid = document.createElement('div');
     colorGrid.className = 'color-grid';
@@ -66,6 +66,7 @@ export function SettingsWindow() {
         orb.className = 'color-option';
         orb.style.backgroundColor = hex;
         orb.title = name;
+        orb.dataset.hex = hex;
 
         orb.addEventListener('click', () => {
             document.querySelectorAll('.settings-window .color-option').forEach(el => el.classList.remove('selected'));
@@ -83,7 +84,7 @@ export function SettingsWindow() {
     // --- Background Theme Section ---
     const bgSection = document.createElement('div');
     bgSection.className = 'settings-section';
-    bgSection.innerHTML = '<label class="section-label">Desk Theme</label>';
+    bgSection.innerHTML = '<label class="section-label">Tema Stola</label>';
 
     const bgGrid = document.createElement('div');
     bgGrid.className = 'color-grid';
@@ -93,6 +94,7 @@ export function SettingsWindow() {
         orb.className = 'color-option';
         orb.style.backgroundColor = hex;
         orb.title = name;
+        orb.dataset.hex = hex;
 
         orb.addEventListener('click', () => {
             appStore.setState({ backgroundColor: hex });
@@ -107,7 +109,7 @@ export function SettingsWindow() {
     // --- Font Section ---
     const fontSection = document.createElement('div');
     fontSection.className = 'settings-section';
-    fontSection.innerHTML = '<label class="section-label">Typography</label>';
+    fontSection.innerHTML = '<label class="section-label">Tipografija</label>';
 
     const fontSelect = document.createElement('select');
     fontSelect.className = 'sidebar-select';
@@ -131,7 +133,7 @@ export function SettingsWindow() {
     // --- Export Section ---
     const exportSection = document.createElement('div');
     exportSection.className = 'settings-section';
-    exportSection.innerHTML = '<label class="section-label">Export</label>';
+    exportSection.innerHTML = '<label class="section-label">Izvoz</label>';
 
     const exportBtn = document.createElement('button');
     exportBtn.className = 'btn btn-primary';
@@ -147,12 +149,12 @@ export function SettingsWindow() {
         font-weight: 600;
         transition: background 0.2s;
     `;
-    exportBtn.textContent = '📄 Export as PDF';
+    exportBtn.textContent = '📄 Izvezi kao PDF';
     exportBtn.onmouseover = () => exportBtn.style.background = '#2563eb';
     exportBtn.onmouseout = () => exportBtn.style.background = '#3b82f6';
     exportBtn.onclick = () => {
         // Dispatch a custom event that the editor can listen to
-        window.dispatchEvent(new CustomEvent('autorica:export-pdf'));
+        document.body.dispatchEvent(new CustomEvent('autorica:export-pdf'));
         overlay.style.display = 'none';
     };
 
@@ -161,6 +163,35 @@ export function SettingsWindow() {
 
     window.appendChild(content);
     overlay.appendChild(window);
+
+    // Sync UI with Store
+    const updateUI = (state) => {
+        if (!state) return;
+
+        // Paper Size
+        sizeSelect.value = state.paperSize || 'A5';
+
+        // Paper Color
+        document.querySelectorAll('.settings-window .color-option').forEach(el => {
+            el.classList.remove('selected');
+            // Check both paper and bg grids
+            if (el.parentElement === colorGrid && el.dataset.hex === state.paperColor) {
+                el.classList.add('selected');
+            }
+            if (el.parentElement === bgGrid && el.dataset.hex === state.backgroundColor) {
+                el.classList.add('selected');
+            }
+        });
+
+        // Font
+        fontSelect.value = state.fontFamily || 'Crimson Pro';
+    };
+
+    // Initial sync
+    updateUI(appStore.getState());
+
+    // Subscribe
+    appStore.subscribe(updateUI);
 
     // Close on click outside
     overlay.addEventListener('click', (e) => {

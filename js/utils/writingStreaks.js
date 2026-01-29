@@ -167,3 +167,5 @@ export class WritingStreaks {
         };
     }
 }
+
+export const writingStreaks = new WritingStreaks();

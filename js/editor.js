@@ -8,6 +8,7 @@ import { PageManager } from './components/PageManager.js';
 import { SettingsWindow } from './components/SettingsWindow.js';
 import { GuidePaper } from './components/GuidePaper.js';
 import { NotesPaper } from './components/NotesPaper.js';
+import { AudioNotesPaper } from './components/AudioNotesPaper.js';
 import { ContextToolbar } from './components/ContextToolbar.js';
 import { MetaPicker } from './components/MetaPicker.js';
 import { appStore } from './store.js';
@@ -30,7 +31,15 @@ let focusMode = null;
 let writingStreaks = new WritingStreaks();
 let cleanupFunctions = [];
 
+export function cleanup() {
+    cleanupFunctions.forEach(fn => fn());
+    cleanupFunctions = [];
+}
+
 export async function loadEditor(bookId, container) {
+    // Cleanup previous editor instance
+    cleanup();
+
     currentBookId = bookId;
     container.innerHTML = `
         <div class="center-screen">
@@ -123,6 +132,7 @@ function createChapterSelector() {
         try {
             await loadChapter(chapter);
             pageManager.loadContent(currentChapter.text || '');
+            window.dispatchEvent(new CustomEvent('content-loaded'));
             updateWordCount();
         } catch (err) {
             ErrorHandler.handle(err, 'SwitchChapter');
@@ -224,63 +234,99 @@ function showStatsPanel() {
     };
 }
 
+
 function renderEditorUI(container) {
+    // 0. Cleanup any zombie buttons
+    document.querySelectorAll('.focus-mode-toggle').forEach(el => el.remove());
+
+    // 1. Sync Desk Color with Store
+    const syncTheme = (state) => {
+        if (state.backgroundColor) {
+            document.body.style.setProperty('background-color', state.backgroundColor, 'important');
+            document.body.style.setProperty('background-image', 'none', 'important');
+        }
+    };
+    syncTheme(appStore.getState());
+    cleanupFunctions.push(appStore.subscribe(syncTheme));
+
     container.innerHTML = '';
 
-    // Create button group container
+    // Create button group container ABOVE Guide Paper
     const buttonGroup = document.createElement('div');
-    buttonGroup.className = 'editor-button-group';
+    buttonGroup.className = 'editor-mini-toolbar';
     buttonGroup.style.cssText = `
         position: fixed;
-        top: 20px;
-        right: 20px;
+        top: 10px;
+        left: calc(50vw - 105mm - 280px); /* Align with Guide Paper */
         z-index: 100;
         display: flex;
-        gap: 8px;
+        gap: 6px;
+        width: 240px;
+        flex-wrap: wrap;
     `;
 
-    // Helper to create icon button
+    // Helper to create SMALLER icon button
     const createIconButton = (icon, title, className = '') => {
         const btn = document.createElement('button');
         btn.innerHTML = icon;
         btn.className = `icon-btn ${className}`;
         btn.title = title;
         btn.style.cssText = `
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             background: white;
             border: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             cursor: pointer;
-            font-size: 20px;
+            font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
         `;
         btn.onmouseover = () => {
-            btn.style.transform = 'scale(1.1)';
-            btn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            btn.style.backgroundColor = '#f3f4f6';
+            btn.style.borderColor = '#d1d5db';
         };
         btn.onmouseout = () => {
-            btn.style.transform = 'scale(1)';
-            btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+            btn.style.backgroundColor = 'white';
+            btn.style.borderColor = 'rgba(0, 0, 0, 0.1)';
         };
         return btn;
     };
 
+    // Back to Dashboard (New location)
+    const backBtn = createIconButton('⬅️', 'Natrag na Knjižnicu'); // Changed icon
+    backBtn.onclick = () => {
+        saveCurrentChapter();
+        if (typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('autorica:view-dashboard'));
+        }
+    };
+    buttonGroup.appendChild(backBtn);
+
+    // Save Button
+    const saveBtn = createIconButton('💾', 'Spremi Knjigu');
+    saveBtn.onclick = () => saveCurrentChapter();
+    buttonGroup.appendChild(saveBtn);
+
     // Settings Button
-    const settingsBtn = createIconButton('⚙️', 'Settings');
+    const settingsBtn = createIconButton('⚙️', 'Postavke');
     buttonGroup.appendChild(settingsBtn);
 
+    // Stats Button
+    const statsBtn = createIconButton('📊', 'Statistika');
+    statsBtn.onclick = () => showStatsPanel();
+    buttonGroup.appendChild(statsBtn);
+
     // Fullscreen Button
-    const fullscreenBtn = createIconButton('⛶', 'Toggle Fullscreen');
+    const fullscreenBtn = createIconButton('⛶', 'Puni Zaslon');
     fullscreenBtn.onclick = () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().then(() => {
                 fullscreenBtn.innerHTML = '⛶'; // Exit fullscreen icon
-                fullscreenBtn.title = 'Exit Fullscreen';
+                fullscreenBtn.title = 'Izlaz iz Punog Zaslona';
             }).catch(err => {
                 console.error('Fullscreen error:', err);
                 ErrorHandler.handle(err, 'Fullscreen');
@@ -288,14 +334,14 @@ function renderEditorUI(container) {
         } else {
             document.exitFullscreen().then(() => {
                 fullscreenBtn.innerHTML = '⛶';
-                fullscreenBtn.title = 'Toggle Fullscreen';
+                fullscreenBtn.title = 'Puni Zaslon';
             });
         }
     };
     buttonGroup.appendChild(fullscreenBtn);
 
     // Focus Mode Button
-    const focusBtn = createIconButton('🎯', 'Focus Mode (F11)', 'focus-mode-toggle');
+    const focusBtn = createIconButton('🎯', 'Fokus Način (F11)', 'focus-mode-toggle');
     focusBtn.onclick = () => {
         const isActive = focusMode.toggle();
         if (isActive) {
@@ -307,21 +353,31 @@ function renderEditorUI(container) {
             focusBtn.style.color = 'black';
             focusBtn.style.borderColor = 'rgba(0, 0, 0, 0.1)';
         }
-        focusBtn.title = isActive ? 'Exit Focus Mode (F11)' : 'Focus Mode (F11)';
+        focusBtn.title = isActive ? 'Izlaz iz Fokus Načina (F11)' : 'Fokus Način (F11)';
     };
     buttonGroup.appendChild(focusBtn);
 
     container.appendChild(buttonGroup);
 
-    // Stats Button (bottom right)
-    container.appendChild(createStatsButton());
-
-    // Settings Window
+    // Initialize Settings Window
     const settingsWindow = SettingsWindow();
     container.appendChild(settingsWindow);
     settingsBtn.onclick = () => {
         settingsWindow.style.display = 'flex';
     };
+
+    // Media Query for small screens (in JS for dynamic positioning)
+    const handleResize = () => {
+        if (window.innerWidth <= 1300) {
+            buttonGroup.style.left = '20px';
+            buttonGroup.style.top = '10px';
+        } else {
+            buttonGroup.style.left = 'calc(50vw - 105mm - 280px)';
+            buttonGroup.style.top = '10px';
+        }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
 
     // Listen for fullscreen changes (e.g., when user presses ESC)
     const fullscreenChangeHandler = () => {
@@ -359,6 +415,9 @@ function renderEditorUI(container) {
     // Notes Paper (Right)
     container.appendChild(NotesPaper());
 
+    // Audio Notes Paper (Right, below notes)
+    container.appendChild(AudioNotesPaper());
+
     // Workspace
     const workspace = document.createElement('div');
     workspace.className = 'book-workspace';
@@ -378,6 +437,11 @@ function renderEditorUI(container) {
     // Load chapter content into PageManager
     if (currentChapter && currentChapter.text) {
         pageManager.loadContent(currentChapter.text);
+
+        // Notify components that content is ready (triggers GuidePaper scan & color)
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('content-loaded'));
+        }, 100);
     }
 
     // Subscribe to background color updates
@@ -460,12 +524,21 @@ function renderEditorUI(container) {
 
     // Listen for PDF export event from settings
     const pdfExportHandler = () => {
-        showPDFExportDialog(currentBook, currentChapter);
+        try {
+            console.log("PDF Export Triggered");
+            if (typeof showPDFExportDialog !== 'function') {
+                throw new Error('PDF dialog function missing');
+            }
+            showPDFExportDialog(currentBook, currentChapter);
+        } catch (e) {
+            ErrorHandler.handle(e, 'PDFExport');
+            alert("PDF Export failed: " + e.message);
+        }
     };
-    window.addEventListener('autorica:export-pdf', pdfExportHandler);
+    document.body.addEventListener('autorica:export-pdf', pdfExportHandler);
 
     cleanupFunctions.push(() => {
-        window.removeEventListener('autorica:export-pdf', pdfExportHandler);
+        document.body.removeEventListener('autorica:export-pdf', pdfExportHandler);
     });
 
     // Add chapter selector if multiple chapters
@@ -496,6 +569,25 @@ async function saveCurrentChapter() {
         if (chapterIndex !== -1) {
             currentBook.chapters[chapterIndex] = { ...currentChapter };
         }
+
+        // CRITICAL: Sync latest settings from Store to prevent overwriting them with old state
+        const state = appStore.getState();
+
+        currentBook.settings = {
+            ...currentBook.settings,
+            pageFormat: state.paperSize,
+            font: state.fontFamily,
+            backgroundColor: state.backgroundColor,
+            paperColor: state.paperColor,
+            // Legacy mapping for compatibility
+            paperTexture: appStore.getPaperTextureFromColor(state.paperColor),
+            theme: appStore.getThemeFromBackground(state.backgroundColor)
+        };
+
+        // Sync Entities, Notes, and Audio Notes
+        currentBook.entities = state.entities || [];
+        currentBook.notes = state.notesContent || '';
+        currentBook.audioNotes = state.audioNotes || [];
 
         // Update modification time
         currentBook.modified = new Date().toISOString();
@@ -531,22 +623,34 @@ function updateWordCount() {
         counter.id = 'word-count';
         counter.style.cssText = `
             position: fixed;
-            bottom: 20px;
+            top: 10px;
             right: 20px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            z-index: 1000;
-            font-family: var(--font-sans);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            background: white;
+            color: #4b5563;
+            padding: 0 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 100;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.1);
+            height: 28px;
+            display: flex;
+            align-items: center;
         `;
         document.body.appendChild(counter);
+
+        // CLEANUP: Remove widget when editor closes
+        if (typeof cleanupFunctions !== 'undefined') {
+            cleanupFunctions.push(() => {
+                if (counter) counter.remove();
+            });
+        }
     }
 
     const pageCount = pageManager ? pageManager.pages.length : 1;
     const chapterCount = currentBook ? currentBook.chapters.length : 1;
 
-    counter.textContent = `${words.toLocaleString()} words • ${chapterCount} chapters • ${pageCount} pages`;
+    // Croatian Translation
+    counter.textContent = `${words.toLocaleString()} riječi • ${chapterCount} pog • ${pageCount} str`;
 }

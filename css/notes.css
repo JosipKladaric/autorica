@@ -8,37 +8,34 @@
     /* Symmetric to Guide Paper */
 
     width: 240px;
-    /* Match height of A4/Window mostly, or fit screen */
-    height: 400px;
-    max-height: calc(100vh - 120px);
+    /* REDUCED HEIGHT */
+    height: 280px;
+    max-height: 280px;
 
-    /* Post-it / Notepad Styling */
-    background-color: #fef9c3;
-    /* Light Yellow */
+    background-color: #fefdec;
+    /* Very subtle yellow tint */
     border-radius: 2px;
     box-shadow:
-        0 1px 1px rgba(0, 0, 0, 0.05),
-        0 4px 6px rgba(0, 0, 0, 0.05),
-        2px 2px 15px rgba(0, 0, 0, 0.1) inset;
-    /* Paper texture feel */
+        0 1px 1px rgba(0, 0, 0, 0.02),
+        0 2px 4px rgba(0, 0, 0, 0.02),
+        0 8px 16px rgba(0, 0, 0, 0.04),
+        0 24px 48px rgba(0, 0, 0, 0.08);
 
-    padding: 20px;
+    padding: 16px 12px;
     display: flex;
     flex-direction: column;
     z-index: 40;
-
-    /* Slight rotation for "stuck on" feel? Maybe later. */
-    transform: rotate(1deg);
+    /* Removed rotation */
 }
 
 .notes-header {
     font-family: 'Caveat', cursive;
-    font-size: 24px;
+    font-size: 22px;
     color: #854d0e;
     /* Darker yellow/brown */
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     border-bottom: 2px solid rgba(0, 0, 0, 0.05);
-    padding-bottom: 5px;
+    padding-bottom: 4px;
     text-align: center;
 }
 
@@ -51,8 +48,8 @@
     outline: none;
 
     font-family: 'Caveat', cursive;
-    font-size: 20px;
-    line-height: 1.5;
+    font-size: 18px;
+    line-height: 1.4;
     color: #422006;
 }
 
@@ -74,10 +71,141 @@
     border-radius: 3px;
 }
 
+/* Audio Notes Board */
+.audio-notes-paper {
+    position: fixed;
+    top: 390px;
+    /* Below notes paper (90 + 280 + 20) */
+    right: calc(50vw - 105mm - 280px);
+
+    width: 240px;
+    height: 200px;
+
+    background-color: #eff6ff;
+    /* Very subtle blue tint */
+    border-radius: 2px;
+    box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.02),
+        0 2px 4px rgba(0, 0, 0, 0.02),
+        0 8px 16px rgba(0, 0, 0, 0.04),
+        0 24px 48px rgba(0, 0, 0, 0.08);
+
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    z-index: 40;
+    /* Removed rotation */
+}
+
+.audio-notes-header {
+    font-family: 'Caveat', cursive;
+    font-size: 22px;
+    color: #1e40af;
+    margin-bottom: 12px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 4px;
+    text-align: center;
+}
+
+.audio-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    justify-content: center;
+}
+
+.audio-btn {
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.audio-btn:hover {
+    background: #f0f9ff;
+    transform: scale(1.05);
+}
+
+.audio-btn:active {
+    transform: scale(0.95);
+}
+
+.audio-btn.recording {
+    background: #ef4444;
+    color: white;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.audio-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.audio-item {
+    background: white;
+    padding: 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Caveat', cursive;
+    font-size: 14px;
+    color: #1e40af;
+}
+
+.audio-item-play {
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.audio-item-delete {
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: auto;
+    opacity: 0.5;
+}
+
+.audio-item-delete:hover {
+    opacity: 1;
+    color: #ef4444;
+}
+
+.audio-time {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
 /* Media Query */
 @media (max-width: 1300px) {
     .notes-paper {
         right: 20px;
         top: 80px;
+    }
+
+    .audio-notes-paper {
+        right: 20px;
+        top: 380px;
     }
 }
